@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  passwordHash    String
+  name            String
+  jobRole         String
+  experienceLevel String
+  createdAt       DateTime  @default(now())
+  sessions        Session[]
+}
+
+model Session {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interviewType String    @default("behavioral")
+  status        String    @default("active") // "active" | "completed"
+  startedAt     DateTime  @default(now())
+  endedAt       DateTime?
+  messages      Message[]
+  report        Report?
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role      String // "interviewer" | "candidate"
+  content   String
+  createdAt DateTime @default(now())
+}
+
+model Report {
+  id        String   @id @default(cuid())
+  sessionId String   @unique
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  data      Json
+  createdAt DateTime @default(now())
+}
