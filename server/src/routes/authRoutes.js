@@ -2,7 +2,7 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "../prisma.js";
-import { signToken } from "../auth.js";
+import { signToken, isAdminEmail } from "../auth.js";
 
 const router = Router();
 
@@ -26,6 +26,7 @@ function publicUser(u) {
     name: u.name,
     jobRole: u.jobRole,
     experienceLevel: u.experienceLevel,
+    isAdmin: isAdminEmail(u.email),
   };
 }
 

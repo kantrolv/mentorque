@@ -34,12 +34,22 @@ export default function Dashboard() {
               </p>
             </div>
           </div>
-          <button
-            onClick={logout}
-            className="text-sm text-slate-500 hover:text-slate-900 transition"
-          >
-            Log out
-          </button>
+          <div className="flex items-center gap-4">
+            {user?.isAdmin && (
+              <button
+                onClick={() => navigate("/admin")}
+                className="text-sm font-medium text-indigo-600 hover:text-indigo-700 transition"
+              >
+                Admin
+              </button>
+            )}
+            <button
+              onClick={logout}
+              className="text-sm text-slate-500 hover:text-slate-900 transition"
+            >
+              Log out
+            </button>
+          </div>
         </div>
       </header>
 

@@ -20,15 +20,29 @@ model User {
 }
 
 model Session {
-  id            String    @id @default(cuid())
+  id            String              @id @default(cuid())
   userId        String
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  interviewType String    @default("behavioral")
-  status        String    @default("active") // "active" | "completed"
-  startedAt     DateTime  @default(now())
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interviewType String              @default("behavioral")
+  status        String              @default("active") // "active" | "completed"
+  startedAt     DateTime            @default(now())
   endedAt       DateTime?
   messages      Message[]
   report        Report?
+  experience    ExperienceFeedback?
+}
+
+// Candidate's feedback about their interview EXPERIENCE (the AI, tech issues,
+// etc.) — reviewed only by the admin. One per session.
+model ExperienceFeedback {
+  id         String   @id @default(cuid())
+  sessionId  String   @unique
+  session    Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  rating     Int // overall experience, 1-5
+  aiComment  String   @default("") // how the AI interviewer (Maya) felt
+  techIssues String   @default("") // any technical problems faced
+  comments   String   @default("") // anything else
+  createdAt  DateTime @default(now())
 }
 
 model Message {

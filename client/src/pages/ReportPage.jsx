@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../api.js";
+import ExperienceForm from "../components/ExperienceForm.jsx";
 
 export default function ReportPage() {
   const { id } = useParams();
@@ -97,6 +98,13 @@ export default function ReportPage() {
           <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-xl px-4 py-2.5">
             {error}
           </p>
+        )}
+
+        {/* Post-interview experience survey (once the session exists). */}
+        {(report || notReady) && (
+          <div className="mt-5">
+            <ExperienceForm sessionId={id} />
+          </div>
         )}
       </main>
     </div>

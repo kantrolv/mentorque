@@ -206,6 +206,42 @@ router.get("/:id/report", async (req, res) => {
   res.json({ report: report.data });
 });
 
+const experienceSchema = z.object({
+  rating: z.number().int().min(1).max(5),
+  aiComment: z.string().max(2000).optional().default(""),
+  techIssues: z.string().max(2000).optional().default(""),
+  comments: z.string().max(2000).optional().default(""),
+});
+
+// GET /sessions/:id/experience — has the candidate already given feedback?
+router.get("/:id/experience", async (req, res) => {
+  const session = await ownedSession(req.params.id, req.userId);
+  if (!session) return res.status(404).json({ error: "Session not found" });
+  const fb = await prisma.experienceFeedback.findUnique({
+    where: { sessionId: session.id },
+  });
+  res.json({ submitted: !!fb });
+});
+
+// POST /sessions/:id/experience — candidate rates their interview experience.
+router.post("/:id/experience", async (req, res) => {
+  const session = await ownedSession(req.params.id, req.userId);
+  if (!session) return res.status(404).json({ error: "Session not found" });
+
+  const parsed = experienceSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid input" });
+
+  const { rating, aiComment, techIssues, comments } = parsed.data;
+  // One feedback per session; allow updating if resubmitted.
+  await prisma.experienceFeedback.upsert({
+    where: { sessionId: session.id },
+    update: { rating, aiComment, techIssues, comments },
+    create: { sessionId: session.id, rating, aiComment, techIssues, comments },
+  });
+
+  res.status(201).json({ ok: true });
+});
+
 // Calls Gemini for the report and validates with zod, retrying once on failure.
 async function generateValidatedReport(transcript) {
   for (let attempt = 0; attempt < 2; attempt++) {

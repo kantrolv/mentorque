@@ -5,6 +5,7 @@ import Dashboard from "./pages/Dashboard.jsx";
 import NewInterview from "./pages/NewInterview.jsx";
 import Interview from "./pages/Interview.jsx";
 import ReportPage from "./pages/ReportPage.jsx";
+import AdminFeedback from "./pages/AdminFeedback.jsx";
 
 function RequireAuth({ children }) {
   const { token } = useAuth();
@@ -49,6 +50,14 @@ export default function App() {
         element={
           <RequireAuth>
             <ReportPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <RequireAuth>
+            <AdminFeedback />
           </RequireAuth>
         }
       />
