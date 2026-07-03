@@ -81,11 +81,7 @@ export default function Dashboard() {
             {sessions.map((s) => (
               <li key={s.id}>
                 <button
-                  onClick={() =>
-                    s.status === "completed"
-                      ? navigate(`/report/${s.id}`)
-                      : navigate(`/interview/${s.id}`)
-                  }
+                  onClick={() => navigate(`/report/${s.id}`)}
                   className="w-full text-left bg-white rounded-2xl border border-slate-200 px-5 py-4 hover:border-indigo-400 hover:shadow-sm transition flex items-center justify-between gap-3"
                 >
                   <div className="min-w-0">

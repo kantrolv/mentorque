@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 // Wraps the browser Web Speech API (SpeechSynthesis + SpeechRecognition).
-// Push-to-talk: caller toggles listening on/off explicitly.
+// Push-to-talk: the caller starts listening, then explicitly stops. The answer
+// is only finalized (and sent to the backend) when the user stops — never on a
+// mid-answer pause — so long, multi-sentence answers are captured in full.
 export function useSpeech() {
   const SpeechRecognition =
     typeof window !== "undefined" &&
@@ -16,9 +18,17 @@ export function useSpeech() {
   const [error, setError] = useState("");
 
   const recognitionRef = useRef(null);
+  // finalTextRef accumulates every finalized chunk across the WHOLE answer,
+  // including across Chrome's automatic recognition restarts. This is the
+  // single source of truth for what the candidate said.
   const finalTextRef = useRef("");
+  // The latest not-yet-finalized phrase (the live "interim" tail). Kept so we
+  // can salvage it if the user stops before Chrome promotes it to a final.
+  const interimRef = useRef("");
   const onFinalRef = useRef(null);
-  const listeningRef = useRef(false);
+  const listeningRef = useRef(false); // true while the user is holding the mic
+  const restartTimerRef = useRef(null);
+  const finalizedRef = useRef(true); // guards against double-finalize per answer
 
   // Set up a fresh recognition instance.
   useEffect(() => {
@@ -28,6 +38,9 @@ export function useSpeech() {
     recognition.interimResults = true;
     recognition.lang = "en-US";
 
+    // ---- Transcript assembly happens HERE ----
+    // Every final result is APPENDED (never overwritten) to finalTextRef, so a
+    // long answer made of many phrases accumulates into one complete string.
     recognition.onresult = (event) => {
       let interimText = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -38,30 +51,41 @@ export function useSpeech() {
           interimText += result[0].transcript;
         }
       }
+      interimRef.current = interimText;
       setInterim(interimText);
     };
 
     recognition.onend = () => {
-      // If the browser ended recognition on its own (e.g. brief silence) but
-      // the user hasn't clicked "stop" yet, keep listening.
+      // If the user is still holding the mic, Chrome ended on its own (a pause
+      // or its ~60s session cap). Do NOT finalize — restart on a short timer so
+      // capture continues and the accumulated transcript is preserved.
       if (listeningRef.current) {
-        try {
-          recognition.start();
-          return;
-        } catch {
-          /* fall through to finalize */
-        }
+        restartTimerRef.current = setTimeout(() => {
+          if (!listeningRef.current) return;
+          try {
+            recognition.start();
+          } catch {
+            // start() throws if it's already running (fine) — otherwise retry.
+            restartTimerRef.current = setTimeout(() => {
+              if (listeningRef.current) {
+                try {
+                  recognition.start();
+                } catch {
+                  /* ignore */
+                }
+              }
+            }, 300);
+          }
+        }, 120);
+        return;
       }
-      setListening(false);
-      setInterim("");
-      const text = finalTextRef.current.trim();
-      finalTextRef.current = "";
-      if (onFinalRef.current) onFinalRef.current(text);
+      // User has stopped — finalize the full accumulated answer.
+      finalize();
     };
 
     recognition.onerror = (e) => {
       const type = e?.error || "unknown";
-      // "no-speech" / "aborted" are benign; only surface real problems.
+      // "no-speech" / "aborted" are benign; onend will restart if still holding.
       if (type === "not-allowed" || type === "service-not-allowed") {
         setError(
           "Microphone access was blocked. Click the mic/camera icon in Chrome's address bar and allow the microphone, then reload."
@@ -77,10 +101,33 @@ export function useSpeech() {
       }
     };
 
+    // Combine accumulated finals + any trailing interim, then hand the FULL
+    // answer to the caller. Runs exactly once per answer.
+    function finalize() {
+      if (finalizedRef.current) return;
+      finalizedRef.current = true;
+      clearTimeout(restartTimerRef.current);
+      setListening(false);
+      setInterim("");
+
+      let full = finalTextRef.current.trim();
+      const tail = interimRef.current.trim();
+      // Salvage a trailing phrase that never became a final result.
+      if (tail && !full.endsWith(tail)) {
+        full = (full + " " + tail).trim();
+      }
+      finalTextRef.current = "";
+      interimRef.current = "";
+
+      if (onFinalRef.current) onFinalRef.current(full);
+    }
+
+    recognition.finalizeNow = finalize; // exposed for the stop() fallback
     recognitionRef.current = recognition;
 
     return () => {
       listeningRef.current = false;
+      clearTimeout(restartTimerRef.current);
       try {
         recognition.abort();
       } catch {
@@ -120,8 +167,6 @@ export function useSpeech() {
 
       synth.speak(utterance);
 
-      // Poll: once speech has started and the queue drains, finish. Also a
-      // hard cap so a totally silent failure can't wedge the interview.
       let ticks = 0;
       const watchdog = setInterval(() => {
         ticks++;
@@ -131,12 +176,14 @@ export function useSpeech() {
     });
   }, []);
 
-  // Start capturing speech. onFinal receives the transcript when stopped.
+  // Start capturing. onFinal receives the FULL transcript when the user stops.
   const startListening = useCallback((onFinal) => {
     if (!recognitionRef.current || listeningRef.current) return;
     setError("");
     onFinalRef.current = onFinal;
     finalTextRef.current = "";
+    interimRef.current = "";
+    finalizedRef.current = false;
     setInterim("");
     listeningRef.current = true;
     try {
@@ -148,15 +195,19 @@ export function useSpeech() {
     }
   }, []);
 
-  // Stop capturing; triggers recognition.onend -> onFinal.
+  // Stop capturing; onend then finalizes with the full transcript. A fallback
+  // timer covers the rare case where the user stops during a restart gap and
+  // onend doesn't fire.
   const stopListening = useCallback(() => {
     if (!recognitionRef.current || !listeningRef.current) return;
     listeningRef.current = false;
+    clearTimeout(restartTimerRef.current);
     try {
       recognitionRef.current.stop();
     } catch {
       /* ignore */
     }
+    setTimeout(() => recognitionRef.current?.finalizeNow?.(), 600);
   }, []);
 
   const cancelSpeaking = useCallback(() => {

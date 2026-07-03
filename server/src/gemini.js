@@ -15,11 +15,16 @@ export class QuotaError extends Error {
   }
 }
 
-function is429(err) {
+// Transient Gemini errors worth retrying: 429 (rate limit / quota) and 503
+// (model temporarily overloaded — "high demand"). Both usually clear quickly.
+function isRetryable(err) {
   const status = err?.status || err?.code || err?.response?.status;
   return (
     status === 429 ||
-    /429|rate.?limit|quota|resource.?exhausted|exceeded/i.test(String(err?.message))
+    status === 503 ||
+    /429|503|rate.?limit|quota|resource.?exhausted|exceeded|unavailable|overloaded|high demand/i.test(
+      String(err?.message)
+    )
   );
 }
 
@@ -59,14 +64,14 @@ async function withRetry(fn, { retries = 2, baseDelay = 600 } = {}) {
       return await fn();
     } catch (err) {
       lastErr = err;
-      if (!is429(err) || attempt === retries) break;
+      if (!isRetryable(err) || attempt === retries) break;
       const delay = baseDelay * 2 ** attempt + Math.random() * 200;
       await sleep(delay);
     }
   }
-  if (is429(lastErr)) {
+  if (isRetryable(lastErr)) {
     throw new QuotaError(
-      "The AI is temporarily rate-limited (Gemini free-tier quota). Wait a minute and try again, or switch GEMINI_MODEL / use a fresh key."
+      "The AI is temporarily rate-limited or overloaded (Gemini free tier). Wait a minute and try again, or switch GEMINI_MODEL / use a fresh key."
     );
   }
   throw lastErr;

@@ -113,7 +113,14 @@ export default function Interview() {
       await api.post(`/sessions/${id}/end`);
       navigate(`/report/${id}`);
     } catch (err) {
-      setError(err.response?.data?.error || "Failed to end interview");
+      // The session is marked completed server-side even when report generation
+      // fails, so any server response means the interview is over — head to the
+      // report screen (it offers a retry). Only a network failure stays here.
+      if (err.response) {
+        navigate(`/report/${id}`);
+        return;
+      }
+      setError("Couldn't reach the server. Check your connection and try again.");
       setEnding(false);
       endedRef.current = false; // allow a retry
     }

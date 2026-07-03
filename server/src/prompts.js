@@ -31,8 +31,38 @@ export function systemPromptFor(type) {
   return `${CORE_RULES}\n\n${focus}`;
 }
 
-// Extra instruction appended for the very first (opening) turn.
-export const OPENING_INSTRUCTION = `Begin the interview now. Briefly introduce yourself and the interview (about 30 minutes), then ask the candidate to introduce themselves and mention the technologies or tools they're most comfortable with — you'll tailor your questions to what they say. Keep it to 2-3 sentences. This will be read aloud, so do NOT use placeholder text or brackets like [Name]; you don't know the candidate's name, so greet them warmly without one (e.g. "Hi there") and don't invent a name for yourself.`;
+// Per-type framing spoken right after the interviewer introduces itself, so
+// the candidate knows exactly what kind of interview this is.
+const FRAMING = {
+  hr: {
+    kind: "behavioral and culture-fit interview",
+    areas: "your experiences, values, teamwork, and how you handle challenges",
+  },
+  sde: {
+    kind: "software engineering technical interview",
+    areas:
+      "computer-science fundamentals, data structures, algorithms, and problem-solving",
+  },
+  ai: {
+    kind: "AI and machine-learning technical interview",
+    areas:
+      "machine-learning fundamentals, model design and evaluation, and practical trade-offs",
+  },
+  fullstack: {
+    kind: "full-stack web development technical interview",
+    areas: "frontend, backend, APIs, databases, and how the pieces fit together",
+  },
+  frontend: {
+    kind: "frontend and JavaScript technical interview",
+    areas: "JavaScript, React, CSS and layout, browser behavior, and UI",
+  },
+};
+
+// Builds the very-first-turn instruction, framed for the chosen interview type.
+export function openingInstructionFor(type) {
+  const f = FRAMING[type] || FRAMING.hr;
+  return `Begin the interview now. In 2 to 4 short sentences, spoken aloud: first briefly introduce yourself as Alex. Then clearly frame the session — tell them this is a ${f.kind} where you'll ask a series of questions about ${f.areas}, and reassure them to take their time before answering, there's no rush. IMPORTANT: do NOT promise or mention a specific number of questions (never say "I will ask 15 questions") — say "a series of questions" so it stays dynamic. Then ask your first question: invite them to briefly tell you about their background and what they're most comfortable with in this area, so you can tailor what follows. This is read aloud, so do NOT use placeholder text or brackets like [Name]; you don't know the candidate's name, so greet them warmly without one (e.g. "Hi there") and don't invent a name for yourself.`;
+}
 
 // After enough of the interview has elapsed, nudge the interviewer to start
 // wrapping up so it closes naturally rather than probing forever.
@@ -79,18 +109,23 @@ export function looksLikeClosing(text) {
 }
 
 // Instruction for generating the structured feedback report at session end.
-export const REPORT_INSTRUCTION = `The interview is over. Based ONLY on what the candidate actually said in the transcript above, produce a written feedback report.
+export const REPORT_INSTRUCTION = `The interview is over. Produce a written feedback report grounded ONLY in what the candidate actually said in the transcript above. Be a fair, specific evaluator — not generic.
 
 Return ONLY valid JSON (no markdown, no code fences) with EXACTLY this shape:
 {
   "overallScore": 7,
-  "summary": "2-3 sentence overall impression",
+  "summary": "2-3 sentence overall impression grounded in what they actually said",
   "competencies": [
-    { "name": "Ownership", "score": 8, "evidence": "reference what the candidate actually said" }
+    { "name": "Data structures", "score": 6, "evidence": "Quote or closely paraphrase what the candidate said, then briefly justify the score — why a 6 and not an 8." }
   ],
-  "strengths": ["..."],
-  "improvements": ["..."],
-  "communicationNotes": "clarity, structure (STAR), conciseness"
+  "strengths": ["specific, tied to an actual answer"],
+  "improvements": ["specific, tied to an actual answer"],
+  "communicationNotes": "clarity, structure, and conciseness — based on how they actually spoke"
 }
 
-Scores are integers from 1 to 10. Include one competency entry for each area relevant to THIS interview that you were able to assess (choose competencies that fit the domain actually discussed — e.g. behavioral areas for an HR interview, or technical areas for an engineering interview). Base every field on concrete things the candidate said.`;
+Rules for scoring:
+- Scores are integers 1-10. Every competency score MUST be justified in its "evidence" field by referencing specific things the candidate said (quote or closely paraphrase), followed by a short reason for the number (e.g. "solid on X but never explained Y, so 6 not 8").
+- Choose competencies that fit the domain actually discussed (technical areas for an engineering interview, behavioral areas for an HR interview).
+- Do NOT penalize the candidate for topics they were never asked about. If the transcript is genuinely thin on a competency, either OMIT that competency, or include it with evidence stating "Insufficient evidence to assess — this wasn't explored in the interview" and a neutral score of 5 — never guess a low score for something that wasn't covered.
+- Keep strengths and improvements specific and tied to actual answers; no generic filler advice.
+- If the whole interview was very short or the candidate barely answered, say so honestly in the summary and keep overallScore modest but fair.`;

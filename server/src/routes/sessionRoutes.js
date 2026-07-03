@@ -6,7 +6,7 @@ import { generateInterviewerReply, generateReportJson } from "../gemini.js";
 import {
   systemPromptFor,
   INTERVIEW_TYPES,
-  OPENING_INSTRUCTION,
+  openingInstructionFor,
   REPORT_INSTRUCTION,
   WRAP_UP_INSTRUCTION,
   CLOSE_NOW_INSTRUCTION,
@@ -42,7 +42,7 @@ router.post("/", async (req, res) => {
     opening = await generateInterviewerReply(
       systemPromptFor(interviewType),
       [],
-      OPENING_INSTRUCTION
+      openingInstructionFor(interviewType)
     );
   } catch (err) {
     console.error("Gemini opening failed:", err.message);
@@ -126,17 +126,22 @@ router.post("/:id/end", async (req, res) => {
   const session = await ownedSession(req.params.id, req.userId);
   if (!session) return res.status(404).json({ error: "Session not found" });
 
-  // If already completed with a report, just return it (idempotent).
+  // Ending is an explicit user action: mark the session completed FIRST so it
+  // can never dangle as "active"/"In progress", even if report generation
+  // fails afterwards (e.g. Gemini free-tier rate limits). The report is a
+  // separate artifact that can be retried later.
+  if (session.status !== "completed") {
+    await prisma.session.update({
+      where: { id: session.id },
+      data: { status: "completed", endedAt: new Date() },
+    });
+  }
+
+  // Return an already-generated report if one exists (idempotent).
   const existingReport = await prisma.report.findUnique({
     where: { sessionId: session.id },
   });
   if (existingReport) {
-    if (session.status !== "completed") {
-      await prisma.session.update({
-        where: { id: session.id },
-        data: { status: "completed", endedAt: new Date() },
-      });
-    }
     return res.json({ report: existingReport.data });
   }
 
@@ -152,18 +157,18 @@ router.post("/:id/end", async (req, res) => {
 
   const report = await generateValidatedReport(transcript);
   if (!report) {
-    return res.status(502).json({ error: "Failed to generate report" });
+    // The session is already completed above; the report can be regenerated
+    // from the report screen. Signal that it's pending, not that ending failed.
+    return res.status(502).json({
+      error:
+        "Interview saved, but the feedback report couldn't be generated (likely rate limits). Open it from your dashboard to try again.",
+      reportPending: true,
+    });
   }
 
-  await prisma.$transaction([
-    prisma.session.update({
-      where: { id: session.id },
-      data: { status: "completed", endedAt: new Date() },
-    }),
-    prisma.report.create({
-      data: { sessionId: session.id, data: report },
-    }),
-  ]);
+  await prisma.report.create({
+    data: { sessionId: session.id, data: report },
+  });
 
   res.json({ report });
 });

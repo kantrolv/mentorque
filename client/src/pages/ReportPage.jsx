@@ -8,16 +8,50 @@ export default function ReportPage() {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [notReady, setNotReady] = useState(false);
+  const [generating, setGenerating] = useState(false);
+
+  function loadReport() {
+    setLoading(true);
+    return api
+      .get(`/sessions/${id}/report`)
+      .then(({ data }) => {
+        setReport(data.report);
+        setNotReady(false);
+        setError("");
+      })
+      .catch((err) => {
+        if (err.response?.status === 404) {
+          // Session ended but the report hasn't been generated yet.
+          setNotReady(true);
+        } else {
+          setError(err.response?.data?.error || "Could not load report");
+        }
+      })
+      .finally(() => setLoading(false));
+  }
 
   useEffect(() => {
-    api
-      .get(`/sessions/${id}/report`)
-      .then(({ data }) => setReport(data.report))
-      .catch((err) =>
-        setError(err.response?.data?.error || "Could not load report")
-      )
-      .finally(() => setLoading(false));
+    loadReport();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  async function generateReport() {
+    setGenerating(true);
+    setError("");
+    try {
+      const { data } = await api.post(`/sessions/${id}/end`);
+      setReport(data.report);
+      setNotReady(false);
+    } catch (err) {
+      setError(
+        err.response?.data?.error ||
+          "Couldn't generate the report just yet. Please try again in a moment."
+      );
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   return (
     <div className="min-h-full bg-gradient-to-b from-slate-50 to-slate-100">
@@ -36,12 +70,33 @@ export default function ReportPage() {
       <main className="max-w-3xl mx-auto px-4 py-8">
         {loading ? (
           <p className="text-slate-500">Loading…</p>
-        ) : error ? (
+        ) : report ? (
+          <ReportBody report={report} />
+        ) : notReady ? (
+          <div className="bg-white rounded-3xl border border-slate-200 p-8 text-center shadow-sm">
+            <h2 className="text-lg font-semibold">Report not ready yet</h2>
+            <p className="text-sm text-slate-500 mt-1.5 max-w-sm mx-auto">
+              This interview is finished, but its feedback report hasn't been
+              generated — often because of a temporary rate limit. Generate it
+              now from the recorded conversation.
+            </p>
+            {error && (
+              <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-xl px-4 py-2.5 mt-4">
+                {error}
+              </p>
+            )}
+            <button
+              onClick={generateReport}
+              disabled={generating}
+              className="mt-5 bg-indigo-600 text-white rounded-xl px-6 py-3 font-medium hover:bg-indigo-700 disabled:opacity-50 transition shadow-sm"
+            >
+              {generating ? "Generating…" : "Generate report"}
+            </button>
+          </div>
+        ) : (
           <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-xl px-4 py-2.5">
             {error}
           </p>
-        ) : (
-          <ReportBody report={report} />
         )}
       </main>
     </div>
