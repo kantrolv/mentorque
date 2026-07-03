@@ -17,6 +17,7 @@ export function useSpeech() {
   const [interim, setInterim] = useState("");
   const [error, setError] = useState("");
 
+  const voiceRef = useRef(null);
   const recognitionRef = useRef(null);
   // finalTextRef accumulates every finalized chunk across the WHOLE answer,
   // including across Chrome's automatic recognition restarts. This is the
@@ -136,6 +137,53 @@ export function useSpeech() {
     };
   }, [SpeechRecognition]);
 
+  // Pick a warm, sweet female English voice for Maya. Voices load async, so we
+  // listen for `voiceschanged` and re-pick once they're available.
+  useEffect(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+
+    // Preferred female voices, best-sounding first, across Chrome/macOS/Windows.
+    const PREFERRED = [
+      "google uk english female",
+      "samantha",
+      "google us english",
+      "microsoft aria",
+      "microsoft jenny",
+      "microsoft zira",
+      "ava",
+      "serena",
+      "allison",
+      "victoria",
+      "karen",
+      "tessa",
+      "moira",
+    ];
+
+    function pickVoice() {
+      const voices = window.speechSynthesis.getVoices();
+      if (!voices.length) return;
+      const byName = (needle) =>
+        voices.find((v) => v.name.toLowerCase().includes(needle));
+      let chosen = null;
+      for (const name of PREFERRED) {
+        chosen = byName(name);
+        if (chosen) break;
+      }
+      // Fallbacks: any voice that self-identifies as female, then any English.
+      chosen =
+        chosen ||
+        voices.find((v) => /female/i.test(v.name)) ||
+        voices.find((v) => v.lang && v.lang.toLowerCase().startsWith("en"));
+      if (chosen) voiceRef.current = chosen;
+    }
+
+    pickVoice();
+    window.speechSynthesis.onvoiceschanged = pickVoice;
+    return () => {
+      window.speechSynthesis.onvoiceschanged = null;
+    };
+  }, []);
+
   // Speak text aloud; resolves when finished. Includes a watchdog because
   // Chrome sometimes fails to fire `onend`, which would otherwise hang the UI.
   const speak = useCallback((text) => {
@@ -145,8 +193,10 @@ export function useSpeech() {
       synth.cancel();
 
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1;
-      utterance.pitch = 1;
+      // Sweet, melodic female voice — slightly higher pitch, gentle pace.
+      if (voiceRef.current) utterance.voice = voiceRef.current;
+      utterance.rate = 0.97;
+      utterance.pitch = 1.15;
 
       let started = false;
       let done = false;

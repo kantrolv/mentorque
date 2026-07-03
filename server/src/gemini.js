@@ -46,7 +46,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 function sanitizeReply(text) {
   return text
     // Name placeholders -> the interviewer's actual name.
-    .replace(/\[[^\]]*\bname\b[^\]]*\]/gi, "Alex")
+    .replace(/\[[^\]]*\bname\b[^\]]*\]/gi, "Maya")
     // Any other leftover bracketed placeholder -> remove.
     .replace(/\[[^\]]*\]/g, "")
     .replace(/\s{2,}/g, " ")

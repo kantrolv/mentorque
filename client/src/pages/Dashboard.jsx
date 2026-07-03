@@ -25,7 +25,7 @@ export default function Dashboard() {
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <span className="h-8 w-8 rounded-lg bg-indigo-600 text-white grid place-items-center text-sm font-bold">
-              A
+              M
             </span>
             <div>
               <h1 className="font-semibold leading-tight">Mock Interview</h1>

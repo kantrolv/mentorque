@@ -42,7 +42,7 @@ export default function NewInterview() {
           What would you like to practice?
         </h2>
         <p className="text-slate-500 mt-1 mb-6">
-          Each one is a live, ~30-minute voice conversation with Alex.
+          Each one is a live, ~30-minute voice conversation with Maya.
         </p>
 
         {error && (

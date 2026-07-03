@@ -50,7 +50,7 @@ export default function AuthPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="mx-auto mb-4 h-12 w-12 rounded-2xl bg-indigo-600 text-white grid place-items-center text-lg font-bold">
-            A
+            M
           </div>
           <h1 className="text-2xl font-bold tracking-tight">
             AI Voice Mock Interview

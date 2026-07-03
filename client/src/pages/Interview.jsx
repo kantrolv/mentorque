@@ -164,7 +164,7 @@ export default function Interview() {
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
             <span className="h-8 w-8 shrink-0 rounded-full bg-indigo-600 text-white grid place-items-center text-sm font-semibold">
-              A
+              M
             </span>
             <h1 className="font-semibold truncate">{label} interview</h1>
           </div>
@@ -270,7 +270,7 @@ function helperText(phase) {
 function StatusPill({ phase }) {
   const map = {
     connecting: ["Connecting", "bg-slate-100 text-slate-600"],
-    speaking: ["Alex is speaking", "bg-indigo-50 text-indigo-700"],
+    speaking: ["Maya is speaking", "bg-indigo-50 text-indigo-700"],
     ready: ["Your turn", "bg-emerald-50 text-emerald-700"],
     listening: ["Listening to you", "bg-rose-50 text-rose-700"],
     thinking: ["Thinking", "bg-amber-50 text-amber-700"],
@@ -311,7 +311,7 @@ function MicButton({ phase, onClick }) {
   const isSpeaking = phase === "speaking";
   const active = isListening || isSpeaking;
 
-  // Speaking = indigo (Alex), listening = rose (you), idle/ready = indigo core.
+  // Speaking = indigo (Maya), listening = rose (you), idle/ready = indigo core.
   const ringColor = isListening ? "bg-rose-400" : "bg-indigo-400";
   const core = isListening
     ? "from-rose-500 to-rose-600"
@@ -321,7 +321,7 @@ function MicButton({ phase, onClick }) {
 
   return (
     <div className="relative w-32 h-32 grid place-items-center">
-      {/* Animated ripple rings when Alex is speaking or you're being heard. */}
+      {/* Animated ripple rings when Maya is speaking or you're being heard. */}
       {active && (
         <>
           <span
@@ -357,7 +357,7 @@ function Bubble({ role, text, dim }) {
     <div className={`flex items-end gap-2 ${isAI ? "justify-start" : "justify-end"}`}>
       {isAI && (
         <span className="h-7 w-7 shrink-0 rounded-full bg-indigo-600 text-white grid place-items-center text-xs font-semibold mb-0.5">
-          A
+          M
         </span>
       )}
       <div
