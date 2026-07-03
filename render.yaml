@@ -1,0 +1,24 @@
+# Render blueprint for the backend. In the Render dashboard: New + → Blueprint,
+# point it at this repo, then fill in the env vars marked sync:false.
+services:
+  - type: web
+    name: mock-interview-api
+    runtime: node
+    rootDir: server
+    plan: free
+    buildCommand: npm install && npx prisma migrate deploy
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash-lite
+      - key: CLIENT_ORIGIN
+        sync: false
